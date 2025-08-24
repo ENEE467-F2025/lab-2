@@ -2,7 +2,6 @@
 import numpy as np
 import roboticstoolbox as rtb
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
 plt.rcParams.update({"figure.figsize": (12, 9), "font.size": 20})
 plt.rcParams['axes.labelsize'] = 20  
