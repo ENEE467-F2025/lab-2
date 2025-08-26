@@ -325,7 +325,7 @@ dependencies:
   - wcwidth=0.2.13=py312h06a4308_0
   - webencodings=0.5.1=py312h06a4308_2
   - websocket-client=1.8.0=py312h06a4308_0
-  - websockets=15.0.1=py312h5eee18b_0
+  - websockets=13.1-py312h66e93f0_0
   - wheel=0.45.1=py312h06a4308_0
   - widgetsnbextension=4.0.13=py312h06a4308_0
   - x264=1!164.3095=h166bdaf_2
