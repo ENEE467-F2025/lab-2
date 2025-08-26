@@ -12,6 +12,16 @@ LW = 5
 
 robot = rtb.models.DH.UR3() # Load UR3 model
 
+def compute_vk_err(ref, curr_q, curr_dq, v_or_w: str):
+    J = robot.jacob0(curr_q)
+    if v_or_w == "v":
+        J_part = J[:3, :]
+    elif v_or_w == "w":
+        J_part = J[3:, :]
+    actual = J_part @ curr_dq
+    err = np.linalg.norm(actual - ref)
+    return err
+
 q_app = np.radians([236, -167, 75, -88, -236, 0])     
 q = q_app                                         # start near a ready pose
 dt = 0.025                                        # sample time
@@ -24,6 +34,8 @@ steps_per_edge = int(L / (np.linalg.norm(v_des_x) * dt))
 
 traj = [q]
 ee_pos = [robot.fkine(q).t]                      # initial end-effector position
+v_err = [compute_vk_err(v_des_x, q, np.zeros_like(q), 'v')] 
+omega_err = [compute_vk_err(np.array([0, 0, 0]), q, np.zeros_like(q), 'w')]
 
 for i in range(4 * steps_per_edge):
     J = robot.jacob0(q)[:3, :]                  # Compute Jacobian
@@ -40,9 +52,18 @@ for i in range(4 * steps_per_edge):
     traj.append(q)
     ee_pos.append(robot.fkine(q).t)
 
+    v_err.append(compute_vk_err(v_des_x, q, dq, 'v'))
+    omega_err.append(compute_vk_err(np.array([0, 0, 0]), q, dq, 'w'))
+
 print("final pose:\n", robot.fkine(q))
 ee_arr = np.array(ee_pos)
 traj_arr= np.array(traj)
+v_err_arr = np.array(v_err)
+omega_err_arr = np.array(omega_err)
+v_err_mse = np.mean(np.sum(np.square(v_err_arr)))
+omega_err_mse = np.mean(np.sum(np.square(omega_err_arr)))
+mse_annot_v = f"MSE (v): {v_err_mse:.2e} \n"
+mse_annot_w = f"MSE (omega): {omega_err_mse:.2f}"
 
 # desired ee_pos for comparison
 ee_start = robot.fkine(q_app).t
@@ -61,6 +82,8 @@ robot_fig = robot.plot(q, block=False, backend='pyplot', dt=dt, jointaxes=False)
 ax = robot_fig.ax
 line, = ax.plot([], [], [], 'r-', linewidth=LW, label="actual", zorder=2)
 ax.plot(ee_des[:, 0], ee_des[:, 1], ee_des[:, 2], 'b--', linewidth=LW, label="desired", alpha=1, zorder=1) # desired ee_traj
+mse_text = ax.text2D(0.2, 0.25, mse_annot_v + "" + mse_annot_w, 
+                     transform=ax.transAxes, fontsize=22, verticalalignment='top')
 
 for i, q in enumerate(traj_arr):
     robot.q = q  # set the robot configuration

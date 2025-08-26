@@ -51,6 +51,11 @@ for T in waypoints:
 
 # Animate trajectory
 traj_arr = np.array(traj)
+print("--------------------------------------")
+print("IK Solution:")
+print("--------------------------------------\n")
+print(f"{np.round(traj_arr, 2)}")
+
 robot_fig = robot.plot(q0_copy, block=False, backend='pyplot', dt=dt, jointaxes=False) # turn off quiver for better viz
 ax = robot_fig.ax
 line, = ax.plot([], [], [], 'r-', linewidth=LW, label="actual", zorder=2)
