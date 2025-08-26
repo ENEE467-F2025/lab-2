@@ -2,8 +2,8 @@ import roboticstoolbox as rtb
 import numpy as np
 
 links = [
-    rtb.RevoluteDH(a=0.5, alpha=0),   # joint 1
-    rtb.RevoluteDH(a=0.5, alpha=0)    # joint 2
+    rtb.RevoluteDH(a=0.5, alpha=0),    # joint 1
+    rtb.RevoluteDH(a=0.33, alpha=0)    # joint 2
 ]
 
 twoR = rtb.DHRobot(links, name="2R")
