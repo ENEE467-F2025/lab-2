@@ -1,5 +1,5 @@
 # ENEE 467 Fall 2025: Robotics Project Laboratory
-## Lab 2: Introduction to Linux Operating Systems and Python Programming
+## Lab 2: Manipulator Kinematics with the Robotics Toolbox for Python
 
 This repository contains a Docker container for Lab 2 (Manipulator Kinematics with the Robotics Toolbox for Python) as well as the necessary code templates for completing the exercises.
 
