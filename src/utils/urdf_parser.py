@@ -1,0 +1,619 @@
+#!/usr/bin/env python3
+
+"""
+Class with methods for parsing and manipulating robot description files specified using the Unified Robot Description Format (URDF).
+
+References:
+1. K. M. Lynch and F. C. Park, Modern Robotics. Cambridge University Press, 2019.
+2. “URDF Primer - MATLAB & Simulink.” [Online]. Available: https://www.mathworks.com/help/sm/ug/urdf-model-import.html
+3. “urdf/XML - ROS Wiki.” Available: https://wiki.ros.org/urdf/XML
+
+
+Author: Clinton Enwerem
+Developed for the course ENEE467, Robotics Projects Laboratory, Fall 2025, University of Maryland, College Park, MD.
+"""
+import os
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import List, Dict, Tuple 
+import spatialmath as sm
+import numpy as np
+from numpy.typing import NDArray
+import trimesh
+
+class Origin:
+    def __init__(self, rot_euler, translation):
+        if rot_euler and translation:
+            T = sm.SE3.Eul(rot_euler) * sm.SE3.Trans(translation)
+        else:
+            T = sm.SE3()
+        self.T = T  
+
+    def __mul__(self, other):
+        return self.T * other.T if isinstance(other, Origin) else self.T * other
+
+    def __rmul__(self, other):
+        return other * self.T
+
+class Geometry:
+    def __init__(self,
+                 geom_type: str,
+                 geom_vals: Tuple = None,
+                 mesh_dir: str = "",
+                 num_points: int = 0,
+                 fit_type: str = "cylinder") -> None:
+        self.geom_type = geom_type
+        self.geometry = None
+
+        try:
+            if geom_type == "box":
+                extents = np.array(geom_vals) if geom_vals is not None else np.array([0.1,0.1,0.1])
+                self.geometry = trimesh.primitives.Box(extents=extents)
+
+            elif geom_type == "cylinder":
+                radius = geom_vals[0] if geom_vals else 0.05
+                height = geom_vals[1] if geom_vals and len(geom_vals) > 1 else 0.1
+                self.radius = radius
+                self.height = height
+                self.geometry = trimesh.primitives.Cylinder(radius=self.radius, height=self.height)
+
+            elif geom_type == "sphere":
+                self.radius = geom_vals[0] if geom_vals else 0.05
+                self.center = geom_vals[1] if geom_vals and len(geom_vals) > 1 else (0,0,0)
+                self.geometry = trimesh.primitives.Sphere(center=self.center, radius=self.radius)
+
+            elif geom_type == "mesh":
+                # create a reasonable default box if mesh parsing fails
+                if not hasattr(Geometry, "_mesh_warning_printed"):
+                    print("Mesh geom parsing broken due to pycollada deprecation. Using default proxy box. \n"
+                          "Do not use this for collision geometry in practice!")
+                    Geometry._mesh_warning_printed = True
+                # use provided scale to make the fallback more sensible
+                if geom_vals and len(geom_vals) >= 3:
+                    fallback_extents = np.array(geom_vals)
+                else:
+                    fallback_extents = np.array([0.25, 0.1, 0.1])
+                self.geometry = trimesh.primitives.Box(extents=fallback_extents)
+
+            else:
+                raise ValueError(f"Geometry type {geom_type} not recognized.")
+
+        except Exception as e:
+            print(f"Error creating geometry of type {geom_type}: {e}\nUsing tiny fallback box.")
+            self.geometry = trimesh.primitives.Box(extents=[1e-3, 1e-3, 1e-3])
+        try:
+            self.inertia = self.geometry.moment_inertia() if self.geometry is not None else None
+        except Exception:
+            self.inertia = None
+
+class Link:
+    """A class representing a link in a robotic manipulator.
+
+    Attributes:
+        name (str): The name of the link.
+        visual (Visual): The visual representation of the link.
+        collision (Collision): The collision representation of the link.
+        inertial (Inertial): The inertial representation of the link.
+        origin (Origin): The origin of the link's frame.
+    Raises:
+        ValueError: If the link is not properly initialized.
+    """
+    class Visual:
+        """A class representing the visual properties of a robotic link.
+        
+        
+        Attributes:
+            name (str): The name of the visual element.
+            geometry (Geometry): The geometry of the visual element.
+            material (Material): The material of the visual element.
+        """
+        class Material:
+            """A class representing the material properties of a visual element.
+
+            Attributes:
+                name (str): The name of the material.
+                color (Tuple): The RGBA color of the material.
+            """
+            def __init__(self, 
+                         name: str, 
+                         color: Tuple) -> None:
+                self.name = name
+                self.color = color
+
+        def __init__(self,
+                     origin: Origin,
+                     geometry: Geometry,
+                     material: Material) -> None:
+            self.origin = origin
+            self.geometry = geometry
+            self.material = material
+    
+    class Collision:
+        """A class representing the collision properties of a robotic link.
+
+        Attributes:
+            origin (Origin): The origin of the collision frame.
+            geometry (Geometry): The geometry of the collision element.
+        """
+        def __init__(self,
+                     origin: Origin,
+                     geometry: Geometry
+                     ) -> None:
+            self.origin = origin
+            self.geometry = geometry
+
+    class Inertial:
+        """A class representing the inertial properties of a robotic link.
+
+        Attributes:
+            mass (float): The mass of the link.
+            origin (Origin): The origin of the link's inertial frame.
+            inertia (np.ndarray): The inertia matrix of the link.
+            check (bool): A flag to indicate if the inertia matrix should be checked for validity.
+        """
+        def __init__(self,
+                     mass: float,
+                     origin: Origin,
+                     collision_geom: Geometry,
+                     check: bool=True
+                     ) -> None:
+            self.mass = mass
+            self.origin = origin
+            self.check = check
+            self.collision_geom = collision_geom
+            if self.collision_geom.geom_type == "cylinder":
+                self.inertia = self.collision_geom.inertia
+
+    def __init__(self, 
+                 name: str, 
+                 visual: Visual, 
+                 collision: Collision,
+                 inertial: Inertial):
+        """Initialize a Link object.
+
+        Args:
+            name (str): The name of the link.
+            visual (Visual): The visual representation of the link.
+            collision (Collision): The collision representation of the link.
+            inertial (Inertial): The inertial representation of the link.
+
+        Raises:
+            ValueError: If the link is not properly initialized.
+        """
+        if not name:
+            print("A link must have a name to distinguish its frame \
+                  from other frames in the TF tree!")
+            raise ValueError
+        self._name = name
+        self._visual = visual
+        self._collision = collision
+        self._inertial = inertial
+        self._origin = self._collision.origin if self._collision else None
+
+class Joint:
+    """
+    A class representing a joint connecting two links in a robotic manipulator.
+
+    Attributes:
+        name (str): The name of the joint.
+        joint_type (str): The type of the joint (e.g., "revolute", "prismatic").
+        parent (Link): The parent link of the joint.
+        child (Link): The child link of the joint.
+        origin (sm.SE3): The origin of the joint in the parent link's frame.
+        axis (Tuple): The axis of motion for the joint.
+    """
+    def __init__(self, 
+                 name: str, 
+                 joint_type: str, 
+                 parent: Link, 
+                 child: Link, 
+                 origin: Origin, 
+                 axis: Tuple):
+        self.name = name
+        self.joint_type = joint_type
+        self.parent = parent
+        self.child = child
+        self.origin = origin
+        self.axis = axis
+
+    def _compute_motion(self, q: float) -> sm.SE3:
+        """Computes a joint motion based on joint type
+
+        Args:
+            q (float): The joint position (in radians) or displacement (in meters).
+
+        Returns:
+            sm.SE3: The SE3 transformation representing the joint motion.
+        """
+        if self.joint_type == "revolute":
+            return sm.SE3.Rt(sm.SO3.AngleAxis(q, np.array(self.axis)), np.zeros(3))
+        elif self.joint_type == "prismatic":
+            return sm.SE3.Rt(sm.SO3(), q * np.array(self.axis))
+        else:  # the joint is fixed
+            return sm.SE3()
+
+class Robot:
+    VALID_DESC_TYPES:List[str] = ['xml', 'xacro', 'urdf']
+
+    class Configuration:
+        def __init__(self,
+                    joints: List[Joint],
+                    joint_values: List[float]) -> None:
+            if len(joints) != len(joint_values):
+                print("Joint names and values must be of the same length!")
+                raise ValueError
+            self.joints = joints
+            self.joint_values = joint_values
+            self.joint_dict: Dict[str, float] = {joint.name: val for joint, val in zip(self.joints, self.joint_values)}
+            self.num_joints = len(self.joints)
+
+        def q0(self):
+            """Return a zero-valued Configuration with same joints."""
+            zero_values = [0.0] * self.num_joints
+            return Robot.Configuration(self.joints, zero_values)
+
+        @classmethod
+        def zeros_for_joints(cls, joints: List[Joint]):
+            """Construct a zero-valued configuration given a joint list."""
+            return cls(joints, [0.0] * len(joints))
+
+    
+    def __init__(self, desc_fp: str):
+        """Initialize a Robot object by specifying the path to the XML (.urdf, .xacro) 
+        file that contains its description.
+        
+        Args:
+            desc_fp <str>: An absolute or relative file path to the XML description file.
+
+        Returns a Robot instance.
+
+        """
+        self._file_ext = None
+        self._desc_fp = None
+        self._desc_tag = None
+        self._tree: ET.ElementTree = None
+        self.links: List[Link] = []
+        self.joints: List[Joint] = []
+
+        if not isinstance(desc_fp, str):
+            raise ValueError("File path must be a string.")
+
+        # normalize path
+        candidate = os.path.abspath(desc_fp)
+        if not os.path.exists(candidate):
+            # try relative to this file's urdf folder 
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            alt = os.path.abspath(os.path.join(base_dir, '..', 'urdf', desc_fp))
+            if os.path.exists(alt):
+                candidate = alt
+            else:
+                raise FileNotFoundError(f"URDF file not found: {desc_fp}")
+
+        self._desc_fp = candidate
+        self._file_ext = self._desc_fp.split('.')[-1].lower()
+        if self._file_ext not in self.VALID_DESC_TYPES:
+            raise TypeError("Input to URDF object is not a supported XML format (.urdf/.xacro/.xml)")
+
+        # parse and build
+        self._tree = self._parse_urdf(self._desc_fp)
+        root = self._tree.getroot()
+        self._desc_tag = f"{root.tag}:{root.attrib.get('name', 'unnamed')}"
+        print(f"Got description file of type {self._file_ext.upper()} with tag:"+f"\033[92m {self._desc_tag}\033[0m.")
+        try:
+            self.links, self.joints = self._build_urdf()
+        except Exception as e:
+            print(f"Error building URDF: {e}")
+            raise
+
+    def _build_urdf(self):
+        """
+        Populates the Robot instance with its links, joints, transmissions, visuals, and collisions.
+        """
+        if self._tree is None:
+            print("URDF instance has no XML tree. Cannot build URDF.")
+            raise ValueError
+        root = self._tree.getroot() # get root object of XML tree
+        links: List[Link] = []
+        joints: List[Joint] = []
+        for link in root.findall('link'):   
+            link_name = link.attrib.get('name', 'default_link')
+            if link_name is None:
+                print("A link must have a name to distinguish its frame from other frames in the TF tree!")
+                continue
+            visual_elem = link.find('visual')
+            if visual_elem is not None:
+                origin_elem = visual_elem.find('origin')
+                if origin_elem is not None:
+                    xyz = [float(x) for x in origin_elem.attrib.get('xyz', '0 0 0').split()]
+                    rpy = [float(r) for r in origin_elem.attrib.get('rpy', '0 0 0').split()]
+                    origin = Origin(rot_euler=rpy, translation=xyz)
+                else:
+                    origin = Origin(rot_euler=[0,0,0], translation=[0,0,0])
+                geometry_elem = visual_elem.find('geometry')
+                if geometry_elem is not None:
+                    if geometry_elem.find('box') is not None:
+                        size_str = geometry_elem.find('box').attrib['size']
+                        size = tuple(float(s) for s in size_str.split())
+                        geometry = Geometry(geom_type='box', geom_vals=size, mesh_dir='', num_points=0)
+                    elif geometry_elem.find('cylinder') is not None:
+                        radius = float(geometry_elem.find('cylinder').attrib['radius'])
+                        length = float(geometry_elem.find('cylinder').attrib['length'])
+                        geometry = Geometry(geom_type='cylinder', geom_vals=(radius, length), mesh_dir='', num_points=0)
+                    elif geometry_elem.find('sphere') is not None:
+                        radius = float(geometry_elem.find('sphere').attrib['radius'])
+                        geometry = Geometry(geom_type='sphere', geom_vals=(radius,), mesh_dir='', num_points=0)
+                    elif geometry_elem.find('mesh') is not None:
+                        filename = geometry_elem.find('mesh').attrib['filename']
+                        scale_str = geometry_elem.find('mesh').attrib.get('scale', '1 1 1')
+                        scale = tuple(float(s) for s in scale_str.split())
+                        geometry = Geometry(geom_type='mesh', geom_vals=scale, mesh_dir=filename, num_points=1000)
+                    else:
+                        print(f"Unsupported geometry type in visual element of link {link_name}.")
+                        continue
+                else:
+                    print(f"No geometry element found in visual of link {link_name}.")
+                    continue
+                material_elem = visual_elem.find('material')
+                if material_elem is not None:
+                    material_name = material_elem.attrib.get('name', 'default')
+                    color_elem = material_elem.find('color')
+                    if color_elem is not None:
+                        rgba_str = color_elem.attrib.get('rgba', '0.8 0.8 0.8 1.0')
+                        rgba = tuple(float(c) for c in rgba_str.split())
+                    else:
+                        rgba = (0.8, 0.8, 0.8, 1.0)
+                    material = Link.Visual.Material(name=material_name, color=rgba)
+                else:
+                    material = Link.Visual.Material(name='default', color=(0.8, 0.8, 0.8, 1.0))
+                visual = Link.Visual(origin=origin, geometry=geometry, material=material)
+            else:
+                visual = None
+            collision_elem = link.find('collision')
+            if collision_elem is not None:  
+                origin_elem = collision_elem.find('origin')
+                if origin_elem is not None:
+                    xyz = [float(x) for x in origin_elem.attrib.get('xyz', '0 0 0').split()]
+                    rpy = [float(r) for r in origin_elem.attrib.get('rpy', '0 0 0').split()]
+                    origin = Origin(rot_euler=rpy, translation=xyz)
+                else:
+                    origin = Origin(rot_euler=[0,0,0], translation=[0,0,0])
+                geometry_elem = collision_elem.find('geometry')
+                if geometry_elem is not None:
+                    if geometry_elem.find('box') is not None:
+                        size_str = geometry_elem.find('box').attrib['size']
+                        size = tuple(float(s) for s in size_str.split())
+                        geometry = Geometry(geom_type='box', geom_vals=size, mesh_dir='', num_points=0)
+                    elif geometry_elem.find('cylinder') is not None:
+                        radius = float(geometry_elem.find('cylinder').attrib['radius'])
+                        length = float(geometry_elem.find('cylinder').attrib['length'])
+                        geometry = Geometry(geom_type='cylinder', geom_vals=(radius, length), mesh_dir='', num_points=0)
+                    elif geometry_elem.find('sphere') is not None:
+                        radius = float(geometry_elem.find('sphere').attrib['radius'])
+                        geometry = Geometry(geom_type='sphere', geom_vals=(radius,), mesh_dir='', num_points=0)
+                    elif geometry_elem.find('mesh') is not None:
+                        filename = geometry_elem.find('mesh').attrib['filename']
+                        scale_str = geometry_elem.find('mesh').attrib.get('scale', '1 1 1')
+                        scale = tuple(float(s) for s in scale_str.split())
+                        geometry = Geometry(geom_type='mesh', geom_vals=scale, mesh_dir=filename, num_points=1000)
+                    else:
+                        print(f"Unsupported geometry type in collision element of link {link_name}.")
+                        continue
+                else:
+                    print(f"No geometry element found in collision of link {link_name}.")
+                    continue
+                collision = Link.Collision(origin=origin, geometry=geometry)
+            else:
+                collision = None
+            inertial_elem = link.find('inertial')
+            if inertial_elem is not None:
+                mass_elem = inertial_elem.find('mass')
+                if mass_elem is not None:
+                    mass = float(mass_elem.attrib.get('value', '1.0'))
+                else:
+                    mass = 1.0
+                origin_elem = inertial_elem.find('origin')
+                if origin_elem is not None:
+                    xyz = [float(x) for x in origin_elem.attrib.get('xyz', '0 0 0').split()]
+                    rpy = [float(r) for r in origin_elem.attrib.get('rpy', '0 0 0').split()]
+                    origin = Origin(rot_euler=rpy, translation=xyz)
+                else:
+                    origin = Origin(rot_euler=[0,0,0], translation=[0,0,0])
+                if collision is not None:
+                    collision_geom = collision.geometry
+                else:
+                    collision_geom = Geometry(geom_type='box', geom_vals=(0.1, 0.1, 0.1), mesh_dir='', num_points=0)
+                inertial = Link.Inertial(mass=mass, origin=origin, collision_geom=collision_geom)
+            else:
+                inertial = None
+            link_obj = Link(name=link_name, visual=visual, collision=collision, inertial=inertial)
+            links.append(link_obj)
+
+        for joint in root.findall('joint'): 
+            joint_name = joint.attrib['name']
+            joint_type = joint.attrib['type']
+            parent_elem = joint.find('parent')
+            child_elem = joint.find('child')
+            if parent_elem is not None and child_elem is not None:
+                parent_link_name = parent_elem.attrib['link']
+                child_link_name = child_elem.attrib['link']
+                parent_link = next((l for l in links if l._name == parent_link_name), None)
+                child_link = next((l for l in links if l._name == child_link_name), None)
+                if parent_link is None or child_link is None:
+                    print(f"Parent or child link for joint {joint_name} not found.")
+                    continue
+            else:
+                print(f"Parent or child element missing in joint {joint_name}.")
+                continue
+            origin_elem = joint.find('origin')
+            if origin_elem is not None:
+                xyz = [float(x) for x in origin_elem.attrib.get('xyz', '0 0 0').split()]
+                rpy = [float(r) for r in origin_elem.attrib.get('rpy', '0 0 0').split()]
+                origin = Origin(rot_euler=rpy, translation=xyz)
+            else:
+                origin = Origin(rot_euler=[0,0,0], translation=[0,0,0])
+            axis_elem = joint.find('axis')
+            if axis_elem is not None:
+                axis_str = axis_elem.attrib.get('xyz', '0 0 1')
+                axis = tuple(float(a) for a in axis_str.split())
+            else:
+                axis = (0, 0, 1)
+            joint_obj = Joint(name=joint_name, joint_type=joint_type, parent=parent_link, child=child_link, origin=origin, axis=axis)
+            joints.append(joint_obj)
+        return links, joints
+
+    def _compute_ik(self, x: sm.SE3) -> Configuration:
+        """
+        Returns an array of joint angles corresponding to an SE3 EE pose using the Jacobian inverse method.
+        """
+        return Robot.Configuration()
+
+    def _compute_jacobian(self, q: Configuration) -> NDArray:
+        return np.eye(1)
+
+    def _compute_T(self, from_frame: str, to_frame: str, config: Configuration) -> sm.SE3:
+        """Compute transform from frame of link1 to frame of link2.
+        
+        Args:
+            from_frame: name of starting link
+            to_frame: name of target link
+            q: dict mapping joint names -> joint positions (rad or m)
+        
+        Returns:
+            sm.SE3: transform from link1 to link2
+        """
+        if config is None:
+            config = Robot.Configuration.zeros_for_joints(self.joints)
+        # validate
+        self._set_config(config)
+        q = config.joint_dict
+
+        path1 = self._path_to_root(from_frame)
+        path2 = self._path_to_root(to_frame)
+
+        # find lowest common ancestor (LCA)
+        try:
+            lca = next(l for l in path1 if l in path2)
+        except StopIteration:
+            raise ValueError(f"No common ancestor between {from_frame} and {to_frame}")
+
+        T = sm.SE3()
+        current = from_frame
+        while current != lca:
+            joint = self._get_joint_to_parent(current)
+            # if joint name not present in config, assume q=0
+            qval = q.get(joint.name, 0.0)
+            T = (joint._compute_motion(qval).inv() * joint.origin.inv()) * T
+            current = joint.parent._name
+
+        stack: List[Joint] = []
+        current = to_frame
+        while current != lca:
+            joint = self._get_joint_to_parent(current)
+            stack.append(joint)
+            current = joint.parent._name
+
+        for joint in reversed(stack):
+            qval = q.get(joint.name, 0.0)
+            T = T * (joint.origin * joint._compute_motion(qval))
+
+        T = np.array(T, dtype=float)
+
+        if T.shape != (4, 4):
+            raise ValueError(f"Expected a 4x4 matrix, got shape {T.shape}")
+        if not np.isfinite(T).all():
+            raise ValueError("Matrix contains NaN or inf")
+        try:
+            return sm.SE3(T)
+        except Exception as e:
+            print(f"Error occurred while creating SE3 object: {e}")
+            raise
+
+    def _path_to_root(self, link_name: str) -> List[str]:
+        """Returns a list of link names from the specified link up to the root link."""
+        path = []
+        current = link_name
+        while current is not None:
+            path.append(current)
+            try:
+                parent = self._get_parent(current)
+                current = parent._name
+            except ValueError:
+                # no parent found, so we've reached the root
+                break
+        return path
+    
+    def _get_joint_to_parent(self, link_name: str) -> Joint:
+        """
+        Returns the joint connecting the specified link to its parent.
+        """
+        for joint in self.joints:
+            if joint.child._name == link_name:
+                return joint
+        raise ValueError(f"No joint found for link '{link_name}'.")
+
+    def _get_link(self, link_name: str) -> Link:
+        """
+        Returns the link object corresponding to the specified link name.
+        """
+        try:
+            links = self.links
+            for link in links:
+                if link._name == link_name:
+                    link1 = link 
+                    return link1
+                else:
+                    print(f"Link object for link with name {link_name} not found. \n"
+                    "Check the name of the link for typos, and ensure it's a valid\n\
+                    link name in the robot's URDF!")
+        except Exception as e:
+            print(e)
+
+    def _get_parent(self, link_name: str) -> Link:
+        """
+        Returns the parent link of the specified link.
+        """
+        for idx, link in enumerate(self.links):
+            if link_name != self.base_link._name and self._is_parent(link._name, link_name):
+                return self.links[idx]
+        raise ValueError(f"No parent found for link '{link_name}'.")
+    
+    def _is_parent(self, parent_link_name:str, child_link_name:str) -> bool:
+        """
+        Checks if the specified link is a parent of another link.
+        """
+        for joint in self.joints:
+            if joint.parent._name == parent_link_name and joint.child._name == child_link_name:
+                return True
+        return False
+
+    @property
+    def base_link(self):
+        return self.links[0] if self.links else None
+
+    @property
+    def actuated_joints(self):
+        return [joint for joint in self.joints if joint.joint_type in ("revolute", "prismatic")]
+    
+    @staticmethod
+    def _parse_urdf(desc_fp) -> ET.Element:
+        """
+        Parses the URDF XML file and returns the ElementTree object.
+        """
+        return ET.parse(desc_fp)
+
+    @staticmethod
+    def _compute_fk(config: Configuration) -> sm.SE3:
+        """
+        Returns the SE3 pose of the end-effector given a set of joint angles using forward kinematics.
+        """
+        return sm.SE3()
+
+    @staticmethod
+    def _set_config(config: Configuration) -> None:
+        """
+        Validates that the config has entries for all joints in config.joints.
+        """
+        missing = [j.name for j in config.joints if j.name not in config.joint_dict]
+        if missing:
+            raise ValueError(f"Configuration missing joint values for: {missing}")
+
