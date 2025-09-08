@@ -17,7 +17,7 @@ def print_matrix_colored(matrix):
         print(' '.join(row_str))
 
 def main():
-    xml_file_path_rel = 'lab-2/src/urdf/ur3.urdf'
+    xml_file_path_rel = 'urdf/ur3.urdf'
     robot = Robot(desc_fp=xml_file_path_rel)
     link_names = [link._name for link in robot.links]
 

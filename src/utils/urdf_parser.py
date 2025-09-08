@@ -22,9 +22,10 @@ from numpy.typing import NDArray
 import trimesh
 
 class Origin:
-    def __init__(self, rot_euler, translation):
+    def __init__(self, rot_euler: List, translation: List):
         if rot_euler and translation:
-            T = sm.SE3.Eul(rot_euler) * sm.SE3.Trans(translation)
+            # URDF is translate, then rotate
+            T = sm.SE3.Trans(translation) * sm.SE3.RPY(rot_euler, order='zyx')
         else:
             T = sm.SE3()
         self.T = T  
@@ -200,7 +201,7 @@ class Joint:
         parent (Link): The parent link of the joint.
         child (Link): The child link of the joint.
         origin (sm.SE3): The origin of the joint in the parent link's frame.
-        axis (Tuple): The axis of motion for the joint.
+        axis (List): The axis of motion for the joint.
     """
     def __init__(self, 
                  name: str, 
@@ -208,7 +209,7 @@ class Joint:
                  parent: Link, 
                  child: Link, 
                  origin: Origin, 
-                 axis: Tuple):
+                 axis: List):
         self.name = name
         self.joint_type = joint_type
         self.parent = parent
@@ -454,21 +455,12 @@ class Robot:
             axis_elem = joint.find('axis')
             if axis_elem is not None:
                 axis_str = axis_elem.attrib.get('xyz', '0 0 1')
-                axis = tuple(float(a) for a in axis_str.split())
+                axis = [float(a) for a in axis_str.split()]
             else:
-                axis = (0, 0, 1)
+                axis = [0, 0, 1]
             joint_obj = Joint(name=joint_name, joint_type=joint_type, parent=parent_link, child=child_link, origin=origin, axis=axis)
             joints.append(joint_obj)
         return links, joints
-
-    def _compute_ik(self, x: sm.SE3) -> Configuration:
-        """
-        Returns an array of joint angles corresponding to an SE3 EE pose using the Jacobian inverse method.
-        """
-        return Robot.Configuration()
-
-    def _compute_jacobian(self, q: Configuration) -> NDArray:
-        return np.eye(1)
 
     def _compute_T(self, from_frame: str, to_frame: str, config: Configuration) -> sm.SE3:
         """Compute transform from frame of link1 to frame of link2.
