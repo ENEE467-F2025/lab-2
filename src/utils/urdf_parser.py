@@ -2,11 +2,13 @@
 
 """
 Class with methods for parsing and manipulating robot description files specified using the Unified Robot Description Format (URDF).
+There are also methods for performing simple kinematic computations on chains, viz. Jacobian computation, forward kinematics, singularity detection, and inverse kinematics.
 
 References:
 1. K. M. Lynch and F. C. Park, Modern Robotics. Cambridge University Press, 2019.
 2. “URDF Primer - MATLAB & Simulink.” [Online]. Available: https://www.mathworks.com/help/sm/ug/urdf-model-import.html
 3. “urdf/XML - ROS Wiki.” Available: https://wiki.ros.org/urdf/XML
+4. xml.etree docs.
 
 
 Author: Clinton Enwerem
@@ -15,7 +17,7 @@ Developed for the course ENEE467, Robotics Projects Laboratory, Fall 2025, Unive
 import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List, Dict, Tuple 
+from typing import List, Dict, Tuple, Union
 import spatialmath as sm
 import numpy as np
 from numpy.typing import NDArray
@@ -209,13 +211,15 @@ class Joint:
                  parent: Link, 
                  child: Link, 
                  origin: Origin, 
-                 axis: List):
+                 axis: List,
+                 limits: Tuple[float, float]):
         self.name = name
         self.joint_type = joint_type
         self.parent = parent
         self.child = child
         self.origin = origin
         self.axis = axis
+        self.limits = limits
 
     def _compute_motion(self, q: float) -> sm.SE3:
         """Computes a joint motion based on joint type
@@ -252,7 +256,16 @@ class Robot:
             """Return a zero-valued Configuration with same joints."""
             zero_values = [0.0] * self.num_joints
             return Robot.Configuration(self.joints, zero_values)
+        
+        def copy(self):
+            """Return an independent copy of this Configuration."""
+            # copy lists so later modifications won't mutate the original
+            return Robot.Configuration(list(self.joints), list(self.joint_values))
 
+        @property
+        def is_singular(self) -> bool:
+            return
+        
         @classmethod
         def zeros_for_joints(cls, joints: List[Joint]):
             """Construct a zero-valued configuration given a joint list."""
@@ -434,6 +447,7 @@ class Robot:
             joint_type = joint.attrib['type']
             parent_elem = joint.find('parent')
             child_elem = joint.find('child')
+            limits_elem = joint.find('limit')
             if parent_elem is not None and child_elem is not None:
                 parent_link_name = parent_elem.attrib['link']
                 child_link_name = child_elem.attrib['link']
@@ -458,7 +472,13 @@ class Robot:
                 axis = [float(a) for a in axis_str.split()]
             else:
                 axis = [0, 0, 1]
-            joint_obj = Joint(name=joint_name, joint_type=joint_type, parent=parent_link, child=child_link, origin=origin, axis=axis)
+            if limits_elem is not None:
+                lower = float(limits_elem.attrib.get('lower', -np.pi))
+                upper = float(limits_elem.attrib.get('upper', np.pi))
+                limits = (lower, upper)
+            else:
+                limits = (-np.pi, np.pi)
+            joint_obj = Joint(name=joint_name, joint_type=joint_type, parent=parent_link, child=child_link, origin=origin, axis=axis, limits=limits)
             joints.append(joint_obj)
         return links, joints
 
@@ -578,27 +598,163 @@ class Robot:
                 return True
         return False
 
+    def _compute_fk(self, config: Configuration, start:Union[str, None]=None, end: Union[str, None]=None,  pretty_print: bool=True, verbose: bool=False) -> sm.SE3:
+            """
+            Computes the forward kinematics transformation matrix from a specified start link to an end link for a given robot configuration.
+
+
+            Args:
+                start (str): The name of the starting link in the kinematic chain. If not provided, defaults to the robot's base link.
+                end (str): The name of the end link (typically the end-effector). If not provided, defaults to the robot's end-effector link.
+                q (Configuration): The robot's joint configuration at which to compute the forward kinematics.
+                pretty_print (bool, optional): If True, prints the transformation matrix in a colored, formatted style. If False, prints the raw matrix. Defaults to True.
+            Returns:
+                sm.SE3: The SE3 transformation matrix representing the pose of the end link relative to the start link at the given configuration.
+            Raises:
+                Exception: If the transformation cannot be computed, an error message is printed.
+            
+            """
+            try:
+                if not start or start is None:
+                    base_link: Link = self.base_link
+                    start = base_link._name
+                if not end or end is None:
+                    end = self.ee_link._name
+                
+                T_FK = self._compute_T(from_frame=start, to_frame=end, config=config)
+                if verbose:
+                    if pretty_print:
+                        self._print_matrix_colored(
+                            np.round(T_FK.A, 4)
+                            )
+                    else:
+                        print(
+                            np.round(T_FK.A, 4)
+                            )
+                return T_FK
+            except Exception as e:
+                print(f"\nCould not compute transformation from {start} link to {end} link: {e}")
+
     @property
-    def base_link(self):
+    def ee_link(self) -> Link:
+        return self.links[-1] if self.links else None
+    
+    @property
+    def base_link(self) -> Link:
         return self.links[0] if self.links else None
 
     @property
-    def actuated_joints(self):
+    def actuated_joints(self) -> List[Joint]:
         return [joint for joint in self.joints if joint.joint_type in ("revolute", "prismatic")]
     
+    @staticmethod
+    def compute_tsp_rot_error(x_d: sm.SE3, T_ee: sm.SE3) -> NDArray:
+        """Computes the orientation error between desired and current end-effector poses."""
+        R_d = x_d.R
+        R_ee = T_ee.R
+        R_err = R_d @ R_ee.T # equation 3.91 Bruno and Siciliano
+        dr = 0.5 * np.array([
+            R_err[2,1] - R_err[1,2],
+            R_err[0,2] - R_err[2,0],
+            R_err[1,0] - R_err[0,1]
+        ])
+        return dr
+    
+    @staticmethod
+    def clamp_limits(config: Configuration, scale: float = 1.0) -> Configuration:
+        """Clamps joint values to their respective limits."""
+        new_values = []
+        for joint, joint_value in zip(config.joints, config.joint_values):
+            lower, upper = joint.limits
+            if joint_value < lower:
+                new_values.append(scale * lower)
+            elif joint_value > upper:
+                new_values.append(scale * upper)
+            else:
+                new_values.append(joint_value)
+        return Robot.Configuration(config.joints, new_values)
+
+    @staticmethod
+    def check_limits(config: Configuration) -> bool:
+        """Checks whether a joint configuration is within limits."""
+        for joint, joint_value in zip(config.joints, config.joint_values):
+            lower, upper = joint.limits
+            if not (lower <= joint_value <= upper):
+                return False
+        return True
+
+    @staticmethod
+    def check_inv(jacobian: NDArray, tol:Union[float, None]=1e12) -> bool:
+        """Checks whether a configuration is singular by 
+        evaluating the condition number of the 
+        Jacobian argument
+        """
+        cond_num = np.linalg.cond(jacobian)
+        if cond_num >= tol:
+            return False
+        else: 
+            return True
+        
+    @staticmethod
+    def rodrigues_rot(axis: List, angle: float) -> NDArray:
+        """Rodrigues' formula for axis-angle rotation.
+
+        Args:
+            axis (List): A list specifying the axis to rotate about.
+            angle (float): The angle in radians to rotate <axis> by.
+
+        Returns:
+            NDArray: The resulting axis-angle rotation matrix computed.
+        """
+        try:
+            exp_theta: NDArray = np.eye(len(axis)) + np.sin(angle)*Robot.skew(axis) + (1-np.cos(angle)*(Robot.skew(axis) @ Robot.skew(axis)))
+            assert exp_theta.shape()[0] == len(axis) and exp_theta.shape()[1] == len(axis)
+            return exp_theta
+        except Exception as e:
+            print(f"Oops! Failed to compute Rodrigues' rotation. Revisit Spong: {e}.")
+
+    @staticmethod
+    def skew(v: List) -> NDArray:
+        """Returns the skew-symmetric matrix corresponding to a 3-vector for cross-product computation.
+
+        Args:
+            v (List): A list or NDArray of shape (3,1) specifying the vector components along the base x, y, and z axes
+
+        Raises:
+            Exception: If the list is not a length-3 array.
+
+        Returns:
+            NDArray: A 3x3 Numpy array containing the corresponding skew-symmetric matrix.
+        """
+        try:
+            if len(v) == 3:
+                return np.array([
+                    [   0, -v[2],  v[1]],
+                    [v[2],     0, -v[0]],
+                    [-v[1], v[0],    0]])
+        except Exception as e:
+            print(f"The array must be of length 3 to compute a sensible skew-symmetric matrix for 3D vectors: {e}")
+        
+    @staticmethod
+    def _print_matrix_colored(A: sm.SE3):
+        """Print a 4x4 matrix with colored formatting for better readability."""
+        for i, row in enumerate(A):
+            row_str = []
+            for j, val in enumerate(row):
+                if i < 3 and j < 3 and i == j:
+                    row_str.append('\033[91m' + f"{val: .2f}" + '\033[0m')
+                elif j == 3 and i < 3:
+                    row_str.append('\033[94m' + f"{val: .2f}" + '\033[0m')
+                else:
+                    row_str.append(f"{val: .2f}")
+            print(' '.join(row_str))
+
     @staticmethod
     def _parse_urdf(desc_fp) -> ET.Element:
         """
         Parses the URDF XML file and returns the ElementTree object.
         """
         return ET.parse(desc_fp)
-
-    @staticmethod
-    def _compute_fk(config: Configuration) -> sm.SE3:
-        """
-        Returns the SE3 pose of the end-effector given a set of joint angles using forward kinematics.
-        """
-        return sm.SE3()
 
     @staticmethod
     def _set_config(config: Configuration) -> None:
