@@ -37,23 +37,26 @@ ee_pos = [robot.fkine(q).t]                      # initial end-effector position
 v_err = [compute_vk_err(v_des_x, q, np.zeros_like(q), 'v')] 
 omega_err = [compute_vk_err(np.array([0, 0, 0]), q, np.zeros_like(q), 'w')]
 
+###### MODIFY for Ex. 2 ############
 for i in range(4 * steps_per_edge):
     J = robot.jacob0(q)[:3, :]                  # Compute Jacobian
     if i < steps_per_edge:
-        dq = np.linalg.pinv(J) @ v_des_x
+        vref = v_des_x
     elif i < 2 * steps_per_edge:
-        dq = np.linalg.pinv(J) @ v_des_z
+        vref = v_des_z
     elif i < 3 * steps_per_edge:
-        dq = np.linalg.pinv(J) @ -v_des_x
+        vref = -v_des_x
     else:
-        dq = np.linalg.pinv(J) @ -v_des_z
+        vref = -v_des_z
+    dq = np.linalg.pinv(J) @ vref
 
     q = q + dq * dt
     traj.append(q)
     ee_pos.append(robot.fkine(q).t)
 
-    v_err.append(compute_vk_err(v_des_x, q, dq, 'v'))
+    v_err.append(compute_vk_err(vref, q, dq, 'v'))
     omega_err.append(compute_vk_err(np.array([0, 0, 0]), q, dq, 'w'))
+###### MODIFY for Ex. 2 ############
 
 print("final pose:\n", robot.fkine(q))
 ee_arr = np.array(ee_pos)
