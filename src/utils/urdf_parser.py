@@ -68,8 +68,8 @@ class Geometry:
             elif geom_type == "mesh":
                 # create a reasonable default box if mesh parsing fails
                 if not hasattr(Geometry, "_mesh_warning_printed"):
-                    print("Mesh geom parsing broken due to pycollada deprecation. Using default proxy box. \n"
-                          "Do not use this for collision geometry in practice!")
+                    # print("Mesh geom parsing broken due to pycollada deprecation. Using default proxy box. \n"
+                        #   "Do not use this for collision geometry in practice!")
                     Geometry._mesh_warning_printed = True
                 # use provided scale to make the fallback more sensible
                 if geom_vals and len(geom_vals) >= 3:

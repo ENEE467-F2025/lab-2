@@ -52,8 +52,8 @@ RUN useradd -ms /bin/bash --uid ${userid} -g ${groupid} robot
 USER robot
 WORKDIR /home/robot
 RUN mkdir Desktop
-
-COPY config/environment.yml /tmp/environment.yml
+# Copy with ownership
+COPY --chown=robot:robot config/environment.yml /tmp/environment.yml
 
 RUN conda env create -f /tmp/environment.yml
 RUN echo "source activate lab-2" >> ~/.bashrc

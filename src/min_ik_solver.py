@@ -64,7 +64,6 @@ def compute_ik(robot: Robot,
             #                 MODIFY HERE for Question 13 (a)
             ########################################################################
             # use Equation 14 to check for task-space convergence
-
             
 
             # Jacobian at current q (we use rtb's jacob0 since the URDF parser class 
@@ -91,7 +90,7 @@ def compute_ik(robot: Robot,
                         ########################################################################
                         #                 MODIFY HERE for Question 13 (a)
                         ########################################################################
-                        # compute the Jacobian pseudo inverse using Numpy's pinv
+                        # compute the Jacobian pseudo inverse using Numpy's linalg.pinv
                         J_pinv = None
                 else:
                     # fallback to DLS with small damping
@@ -101,7 +100,7 @@ def compute_ik(robot: Robot,
                 ########################################################################
                 #                 MODIFY HERE for Question 13 (a)
                 ########################################################################
-                # update iterate using Equation 13
+                # update iterate using Equation 13; the raw joint angles are stored in the list: config_k.joint_values
                 delta_q = None
                 q_next = None
                 config_k = Robot.Configuration(robot.actuated_joints, q_next.tolist())
@@ -125,7 +124,7 @@ def main():
                             )
     q_0 = robot.Configuration.zeros_for_joints(robot.actuated_joints)
 
-    # example SE3 poses
+    # Enter the test SE3 poses here
     se3_examples = [
         ########################################################################
         #                 MODIFY HERE for Question 13 (a)

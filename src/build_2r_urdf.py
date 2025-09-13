@@ -9,24 +9,18 @@ from utils.urdf_builder import URDFBuilder
 builder = URDFBuilder(name="")
 
 # Links
-builder.add_link("", length=0.0, geometry="")
-builder.add_link("", length=0.0, geometry="")
-builder.add_link("")
+# Add links using the add_link() method
 
 # Joints
-builder.add_joint("", parent="", child="",
-                  joint_type="", origin=(), axis=())
-builder.add_joint("", parent="", child="",
-                  joint_type="", origin=(), axis=())
-builder.add_joint("", parent="", child="",
-                  joint_type="", origin=())
+# Add joints here using the add_joint() method
 
 # Save URDF
-print(builder.to_string())
-builder.save("")
 
 # Plot robot
-builder.plot_robot([])
+# Plot the robot at the specified configuration using the plot_robot method
+
+# Print URDF; use only if your URDF is built successfully
+# print(builder.to_string())
 
 ####################################
 # MODIFY HERE

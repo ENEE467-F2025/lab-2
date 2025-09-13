@@ -11,7 +11,7 @@ Manipulator kinematics refers to the mathematical study of how a robot arm’s j
 
 To avoid software conflicts and increase portability, all lab software will be packaged as a Docker container. Follow the instructions below to get started.
 
-## Building the Container
+## Building the Docker Image
 
 First check to see if the image is prebuilt on the lab computer by running the following command
 ```
@@ -19,7 +19,7 @@ docker image ls
 ```
 If you see the image named `lab-2-image` in the list then you can **skip** the build process.
 
-To build the Docker container, ensure that you have [Docker](https://www.docker.com/get-started/) installed and the Docker daemon running.
+To build the Docker image, ensure that you have [Docker](https://www.docker.com/get-started/) installed and the Docker daemon running.
 * Clone this repository and navigate to the `docker` folder
     ```
     cd ~/Labs
@@ -42,18 +42,20 @@ The lab computers contain a prebuild image so you will not have to build the ima
     ```
 * Run the Docker container
     ```
-    docker compose -f lab-2-compose.yml run --rm lab-2-docker
+    userid=$(id -u) groupid=$(id -g) docker compose -f lab-2-compose.yml run --rm lab-2-docker
     ```
 * Once inside the container, you should be greeted with the following prompt indicating that the container is running
     ```
     (lab-2) robot@docker-desktop:~$
     ```
 * Edit the lab-2 Python code  within the `lab-2/src` and `lab-2/src/exercise` from a VS Code editor on the host machine. The repo directory `lab-2/src`  is mounted to the docker container located at `/home/robot/lab-2/src` so all changes will be reflected **inside** the container.
-* Test your setup by executing a Python script within the `lab-2/src` directory:
+
+* Test your setup by executing a Python script within the `lab-2/src` directory in the terminal running the container:
     ```
     cd ~/lab-2/src
     python 2r_dh.py
     ```
+The script should print a table showing the DH parameters of a simple 2R manipulator. You may now proceed with the rest of the lab procedure.
 
 ## Lab Instructions
 

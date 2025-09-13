@@ -16,8 +16,8 @@ q_at_lim = robot.qlim[0]
 q_end = [-1.860, -2.990, 0.670, -2.000, 1.610, -0.007]
 
 def check_inv(some_J):
-    """Uses condition number as ill-conditioned J
-       weirdly passes the np.linalg.LinAlgError check
+    """Tests for singular configurations by computing
+    the Jacobian's condition number
     """
     cond_num = np.linalg.cond(some_J)
     if cond_num >= VERY_HIGH_NUM:

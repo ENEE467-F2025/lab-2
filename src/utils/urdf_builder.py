@@ -18,7 +18,7 @@ from xml.dom import minidom
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import List
+from typing import List, Union
  
 class URDFBuilder:
     def __init__(self, name="robot"):
@@ -27,7 +27,8 @@ class URDFBuilder:
         self.joints = {}
         self.link_lengths = {}
 
-    def add_link(self, name, mass=1.0, length=None, radius=None, geometry="box"):
+    def add_link(self, name: str, length:Union[float, None]=None, \
+                 radius:Union[float, None]=None, mass:float=1.0, geometry="box"):
         """
         Add a link with a simple geometry.
         """
@@ -50,7 +51,7 @@ class URDFBuilder:
         self.link_lengths[name] = length
         return link
 
-    def add_joint(self, name, parent, child, joint_type="revolute",
+    def add_joint(self, name:str, parent:str, child:str, joint_type="revolute",
                   origin=(0,0,0), rpy=(0,0,0), axis=(0,0,1)):
         """
         Add a joint connecting parent to child
