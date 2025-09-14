@@ -358,4 +358,4 @@ dependencies:
   - yarl=1.18.0=py312h5eee18b_0
   - zeromq=4.3.5=h6a678d5_0
   - zstd=1.5.7=hb8e6e7a_2
-prefix: /home/drce/miniconda3/envs/rtb_env
+prefix: /opt/conda/envs/lab-2
