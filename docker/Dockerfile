@@ -33,8 +33,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends --allow-unauthe
     tmux \
     tzdata \
     xclip \
+    python3-tk \
     x11proto-gl-dev && \
     rm -rf /var/lib/apt/lists/*
+
+# install VS Code server
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
+# install python extension
+RUN code-server --install-extension ms-python.python
 
 # Set datetime and timezone correctly
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo '$TZ' | sudo tee -a /etc/timezone
@@ -51,7 +58,7 @@ RUN groupadd -g ${groupid} -o robot
 RUN useradd -ms /bin/bash --uid ${userid} -g ${groupid} robot
 USER robot
 WORKDIR /home/robot
-RUN mkdir Desktop
+
 # Copy with ownership
 COPY --chown=robot:robot config/environment.yml /tmp/environment.yml
 
