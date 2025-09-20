@@ -32,7 +32,7 @@ def singular(rank) -> str:
 
 
 ########################################################################
-#                 MODIFY HERE for Question 13 (a)
+#                 MODIFY HERE for Exercise 3(a)
 ########################################################################
 def compute_ik(robot: Robot, 
                 x_d: sm.SE3, 
@@ -61,9 +61,9 @@ def compute_ik(robot: Robot,
             error = np.hstack((dt, dr)).reshape((-1, 1))  # 6x1 column
 
             ########################################################################
-            #                 MODIFY HERE for Question 13 (a)
+            #                 MODIFY HERE for Exercise 3(a)
             ########################################################################
-            # use Equation 14 to check for task-space convergence
+            # use Equation 12 to check for task-space convergence
             
 
             # Jacobian at current q (we use rtb's jacob0 since the URDF parser class 
@@ -88,7 +88,7 @@ def compute_ik(robot: Robot,
                         J_pinv = J.T @ np.linalg.inv(JJt + (damp_factor**2) * np.eye(JJt.shape[0]))
                     else:
                         ########################################################################
-                        #                 MODIFY HERE for Question 13 (a)
+                        #                 MODIFY HERE for Exercise 3(a)
                         ########################################################################
                         # compute the Jacobian pseudo inverse using Numpy's linalg.pinv
                         J_pinv = None
@@ -98,11 +98,11 @@ def compute_ik(robot: Robot,
                     JJt = J @ J.T
                     J_pinv = J.T @ np.linalg.inv(JJt + (damp_eps**2) * np.eye(JJt.shape[0]))
                 ########################################################################
-                #                 MODIFY HERE for Question 13 (a)
+                #                 MODIFY HERE for Exercise 3(a)
                 ########################################################################
-                # update iterate using Equation 13; the raw joint angles are stored in the list: config_k.joint_values
-                delta_q = None
-                q_next = None
+                # update iterate using Equation 11
+                delta_q = (J_pinv @ error).flatten() # see Equation 11
+                q_next = None                        # see Equation 11; the raw joint angles are stored in the list: config_k.joint_values
                 config_k = Robot.Configuration(robot.actuated_joints, q_next.tolist())
 
         # if we exit the loop without convergence
@@ -127,7 +127,7 @@ def main():
     # Enter the test SE3 poses here
     se3_examples = [
         ########################################################################
-        #                 MODIFY HERE for Question 13 (a)
+        #                 MODIFY HERE for Exercise 3(a)
         ######################################################################## 
     ]
 
@@ -157,7 +157,7 @@ def main():
 
         # Check FK for min solver result
         ########################################################################
-        #                 MODIFY HERE for Question 13 (c)
+        #                 MODIFY HERE for Exercise 3(c)
         ######################################################################## 
 
 if __name__=='__main__':
