@@ -48,6 +48,10 @@ def main():
     # TODO: Question 5(a)
     # Chain the SE3s in the SE3_list you populated above in 
     # the specified traversal order using matrix multiplication
+    # NOTE:
+    # If working with the SE3 objects directly, use * for composition.
+    # If working with SE3.A (NumPy arrays), use @ or np.matmul.
+    # However, in your report, you should provide a matrix as your answer.
     ####################################
     SE3_prod_mat = None
     SE3_prod = sm.SE3(SE3_prod_mat)

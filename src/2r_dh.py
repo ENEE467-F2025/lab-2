@@ -35,7 +35,7 @@ T_01 = np.array([
 print(twoR)
 
 #######################
-# Your Code Here
+# TODO: Construct T_12 using Eq. 3
 ####################### 
 # T_12 = None
-# T_02 = None
+# T_02 = T_01 @ T_12
