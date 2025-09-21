@@ -26,8 +26,8 @@ q_app = np.radians([236, -167, 75, -88, -236, 0])
 q = q_app                                         # start near a ready pose
 dt = 0.025                                        # sample time
 N = 100                                           # number of time steps over which to execute motion
-v_des_x = np.array([0.1, 0, 0])                   # 5cm/s in base X (both directions)
-v_des_z = np.array([0, 0, 0.1])                   # 5cm/s in base Z (both directions)
+v_des_x = np.array([0.1, 0, 0])                   # 10cm/s in base X 
+v_des_z = np.array([0, 0, 0.1])                   # 10cm/s in base Z 
 
 L = 0.1  # side length of square, m
 steps_per_edge = int(L / (np.linalg.norm(v_des_x) * dt))

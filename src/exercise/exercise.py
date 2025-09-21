@@ -31,7 +31,7 @@ square = np.vstack([
     np.linspace(ee_goal_nx, ee_start, steps_per_edge)
 ])
 
-# TODO: Define square corners in SE(3)
+# TODO: Define square corners in SE(3), beginning from ee_start
 waypoints = []
 
 traj = [q0_copy]
