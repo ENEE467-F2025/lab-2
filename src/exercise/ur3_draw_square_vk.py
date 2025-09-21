@@ -37,7 +37,7 @@ ee_pos = [robot.fkine(q).t]                      # initial end-effector position
 v_err = [compute_vk_err(v_des_x, q, np.zeros_like(q), 'v')] 
 omega_err = [compute_vk_err(np.array([0, 0, 0]), q, np.zeros_like(q), 'w')]
 
-###### MODIFY for Ex. 2 ############
+###### TODO: Ex. 2 (Adapt velocity update logic to maintain zero angular velocity) ############
 for i in range(4 * steps_per_edge):
     J = robot.jacob0(q)[:3, :]                  # Compute Jacobian
     if i < steps_per_edge:
@@ -56,7 +56,7 @@ for i in range(4 * steps_per_edge):
 
     v_err.append(compute_vk_err(vref, q, dq, 'v'))
     omega_err.append(compute_vk_err(np.array([0, 0, 0]), q, dq, 'w'))
-###### MODIFY for Ex. 2 ############
+###### TODO: Ex. 2 (Adapt velocity update logic to maintain zero angular velocity) ############
 
 print("final pose:\n", robot.fkine(q))
 ee_arr = np.array(ee_pos)

@@ -1,5 +1,4 @@
 from utils.urdf_parser import Robot
-import numpy as np
 import spatialmath as sm
 
 
@@ -22,20 +21,13 @@ def main():
     link_names = [link._name for link in robot.links]
 
     ####################################
-    # MODIFY HERE for Question 2(a)
+    # TODO: Question 2(a)
     ####################################
     q_test = robot.Configuration(
                                 joints=robot.actuated_joints,
                                 joint_values=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0] 
                             )
-    ####################################
-    # MODIFY HERE for Question 2(a)
-    ####################################
-
-
-    ####################################
-    # MODIFY HERE for Question 2(a)
-    ####################################
+    
     # list containing frame names in UR3's kinematic chain
     link_list = [
         'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link',
@@ -53,31 +45,19 @@ def main():
             print(f"\nCould not compute transformation for {link}: {e}")
 
     ####################################
-    # MODIFY HERE for Question 2(a)
-    ####################################
-
-    ####################################
-    # MODIFY HERE for Question 5(a)
+    # TODO: Question 5(a)
+    # Chain the SE3s in the SE3_list you populated above in 
+    # the specified traversal order using matrix multiplication
     ####################################
     SE3_prod_mat = None
     SE3_prod = sm.SE3(SE3_prod_mat)
 
     ####################################
-    # MODIFY HERE for Question 5(a)
-    ####################################
-
-    ####################################
-    # MODIFY HERE for Question 5(b)
+    # TODO: Question 5(b)
+    
     ####################################
     SE3_base_tool0 = None
 
-    # Chain the SE3s in order using matrix multiplication
-    # Remember, the A attribute in the SE3 object is the matrix you need
-
-
-    ####################################
-    # MODIFY HERE for Question  5(b)
-    ####################################
 
 if __name__=='__main__':
     main()

@@ -21,28 +21,21 @@ def compute_jacobian(robot: Robot, config: Robot.Configuration) -> NDArray:
             z_i_prev = T_0_i_prev.R @ np.array(joint.axis) 
 
             ####################################
-            # MODIFY HERE
+            # TODO: Fill in p_i_prev and p_ee
             ####################################
 
             p_i_prev = None
             p_ee = None
 
             ####################################
-            # MODIFY HERE
-            ####################################
-
-
-            ####################################
-            # MODIFY HERE
+            # TODO: Compute Jv and Jw for the 
+            # revolute joint
             ####################################
 
             if joint.joint_type == "revolute":
                 Jv = None
                 Jw = None
 
-            ####################################
-            # MODIFY HERE
-            ####################################
             elif joint.joint_type == "prismatic":
                 Jv = z_i_prev
                 Jw = np.zeros(3)
@@ -77,7 +70,7 @@ def main():
 
     print("\n--------------------------")
     print(f"Simple URDF Jacobian Calculator: \n{np.round(jac, 4)}\n")
-
+    # TODO: Add print commands for verification with RTB
 
 
 if __name__=='__main__':

@@ -32,16 +32,21 @@ ee_pos = [robot.fkine(q).t]                      # initial end-effector position
 v_err = [compute_vk_err(v_des, q, np.zeros_like(q), 'v')] 
 omega_err = [compute_vk_err(np.array([0, 0, 0]), q, np.zeros_like(q), 'w')]
 
+
+
 for _ in range(200):
-    ###### MODIFY ############
+    # TODO: Compute joint velocities to achieve vdes and 
+    # a constant tool orientation
+
     J = robot.jacob0(q)[:3, :]                   # Compute J
     dq = np.linalg.pinv(J) @ v_des               # Compute config velocity update
-    ###### MODIFY ############
     q = q + dq * dt                              # update joint velocity
     traj.append(q)                               # keep track of q for animation
     ee_pos.append(robot.fkine(q).t)              # keep track of ee pos for animation
     v_err.append(compute_vk_err(v_des, q, dq, 'v'))
     omega_err.append(compute_vk_err(np.array([0, 0, 0]), q, dq, 'w'))
+
+
 
 print("final pose:\n", robot.fkine(q))
 ee_arr = np.array(ee_pos)

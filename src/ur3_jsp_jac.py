@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 robot = rtb.models.DH.UR3() # Load a UR3 model
 
 #######################################################
-# Vary this number. Test 1e3, 1e4, 1e5, and 1e6 ###
+# TODO: Vary this number. Test 1e3, 1e4, 1e5, and 1e6 ###
 VERY_HIGH_NUM = 1e2
 #######################################################
 

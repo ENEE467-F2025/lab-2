@@ -31,23 +31,13 @@ square = np.vstack([
     np.linspace(ee_goal_nx, ee_start, steps_per_edge)
 ])
 
-# Define square corners in SE(3)
-###### MODIFY ############
+# TODO: Define square corners in SE(3)
 waypoints = []
-###### MODIFY ############
 
 traj = [q0_copy]
+q0 = None
+# TODO: Get IK solution for each corner in waypoints
 
-for T in waypoints:
-    ###### MODIFY ############
-    sol = None
-    ###### MODIFY ############
-    if sol.success:
-        q_sol = sol.q
-        traj.append(q_sol)
-        q0 = q_sol  # warm start next solve
-    else:
-        print("IK failed for waypoint:", T)
 
 # Animate trajectory
 traj_arr = np.array(traj)

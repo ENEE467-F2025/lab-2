@@ -30,10 +30,6 @@ def singular(rank) -> str:
         return False
     return True
 
-
-########################################################################
-#                 MODIFY HERE for Exercise 3(a)
-########################################################################
 def compute_ik(robot: Robot, 
                 x_d: sm.SE3, 
                 init_guess: Robot.Configuration, 
@@ -61,7 +57,7 @@ def compute_ik(robot: Robot,
             error = np.hstack((dt, dr)).reshape((-1, 1))  # 6x1 column
 
             ########################################################################
-            #                 MODIFY HERE for Exercise 3(a)
+            #                 TODO: Exercise 3(a)
             ########################################################################
             # use Equation 12 to check for task-space convergence
             
@@ -88,7 +84,7 @@ def compute_ik(robot: Robot,
                         J_pinv = J.T @ np.linalg.inv(JJt + (damp_factor**2) * np.eye(JJt.shape[0]))
                     else:
                         ########################################################################
-                        #                 MODIFY HERE for Exercise 3(a)
+                        #                 TODO: Exercise 3(a)
                         ########################################################################
                         # compute the Jacobian pseudo inverse using Numpy's linalg.pinv
                         J_pinv = None
@@ -98,7 +94,7 @@ def compute_ik(robot: Robot,
                     JJt = J @ J.T
                     J_pinv = J.T @ np.linalg.inv(JJt + (damp_eps**2) * np.eye(JJt.shape[0]))
                 ########################################################################
-                #                 MODIFY HERE for Exercise 3(a)
+                #                 TODO: Exercise 3(a)
                 ########################################################################
                 # update iterate using Equation 11
                 delta_q = (J_pinv @ error).flatten() # see Equation 11
@@ -127,7 +123,7 @@ def main():
     # Enter the test SE3 poses here
     se3_examples = [
         ########################################################################
-        #                 MODIFY HERE for Exercise 3(a)
+        #                 TODO: Exercise 3(a)
         ######################################################################## 
     ]
 
@@ -157,7 +153,7 @@ def main():
 
         # Check FK for min solver result
         ########################################################################
-        #                 MODIFY HERE for Exercise 3(c)
+        #                 TODO: Exercise 3(c)
         ######################################################################## 
 
 if __name__=='__main__':
