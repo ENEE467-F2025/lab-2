@@ -4,11 +4,12 @@ import roboticstoolbox as rtb # import the Toolbox
 
 robot = rtb.models.UR3() # Load a UR3 model
 
-q = None # MODIFY HERE for Question 5(c)
+# TODO: Question 5(c)
+q = None 
 
 T = robot.fkine(
     q = q,
-    end=None # MODIFY HERE for Question 5(c)
+    end=None 
 )
 
-print(T) # T is a spatialmath.SE3 object
+print(T)
