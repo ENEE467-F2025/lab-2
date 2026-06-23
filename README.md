@@ -1,15 +1,15 @@
-# ENEE 467 Fall 2025: Robotics Project Laboratory
-## Lab 2: Manipulator Kinematics with the Robotics Toolbox for Python
+# ENEE 467 Fall 2026: Robotics Project Laboratory
+## Lab 2 - Part 2 (Hardware): Robot Arm Kinematics on the Real UR3e
 
-This repository contains a Docker container for Lab 2 (Manipulator Kinematics with the Robotics Toolbox for Python) as well as the necessary code templates for completing the exercises.
+This repository contains a Docker container for Lab 2, Part 2 (Hardware) along with the code template needed to complete the procedure and exercises.
 
 ## Overview
 
-Manipulator kinematics refers to the mathematical study of how a robot arm’s joint motions relate to the spatial position and orientation of its end-effector or tool. Put differently, kinematics provides the mapping between the joint space of a robot and its task space (defined by a Cartesian position and orientation). Manipulator kinematics is commonly categorized into two connected sub-problems, namely: forward and inverse kinematics. While forward kinematics computes the end-effector pose from known joint variables, inverse kinematics solves the more challenging problem of finding joint configurations that achieve a desired end-effector pose. Together, they form the math backbone of higher-level robotic planning and control, and are thus crucial for robotic manipulation. You will explore varied solutions to both problems in this lab.
+In this part of the lab you move the forward- and inverse-kinematics tools from Part 1 onto the real UR3e arm. Working only through the Universal Robots Python interface (`ur_rtde`), you connect to the robot over the network, read its live joint angles and reported tool-center-point (TCP) pose, and use that state to validate your kinematic model against the hardware. The work is **read-only**: no motion commands are ever sent to the robot. You will validate forward kinematics by comparing a model-based tool pose against the robot's reported pose, and validate inverse kinematics by recovering a joint configuration from a measured pose. There is no ROS 2 in this part.
 
 ## Lab Software
 
-To avoid software conflicts and increase portability, all lab software will be packaged as a Docker container. Follow the instructions below to get started.
+To avoid software conflicts and increase portability, all lab software is packaged as a Docker container. The container already has the Robotics Toolbox for Python and the `ur_rtde` interface installed. Follow the instructions below to get started.
 
 ## Building the Docker Image
 
@@ -20,11 +20,11 @@ docker image ls
 If you see the image named `lab-2-image` in the list then you can **skip** the build process.
 
 To build the Docker image, ensure that you have [Docker](https://www.docker.com/get-started/) installed and the Docker daemon running.
-* Clone this repository and navigate to the `docker` folder
+* Clone the hardware branch of this repository and navigate to the `docker` folder
     ```
     cd ~/Labs
-    git clone https://github.com/ENEE467-F2025/lab-2.git
-    cd lab-2/docker
+    git clone -b hardware https://github.com/ENEE467-F2025/lab-2.git lab-2-hw
+    cd lab-2-hw/docker
     ```
 * Build the image with Docker compose
     ```
@@ -33,12 +33,12 @@ To build the Docker image, ensure that you have [Docker](https://www.docker.com/
 
 ## Starting the Container
 
-The lab computers contain a prebuild image so you will not have to build the image.
-* Clone this repo to get the lab-2 code if you haven't done so already
+The lab computers contain a prebuilt image so you will not have to build the image.
+* Clone the hardware branch to get the lab-2 code if you haven't done so already
     ```
     cd ~/Labs
-    git clone https://github.com/ENEE467-F2025/lab-2.git
-    cd lab-2/docker
+    git clone -b hardware https://github.com/ENEE467-F2025/lab-2.git lab-2-hw
+    cd lab-2-hw/docker
     ```
 * Run the Docker container
     ```
@@ -48,15 +48,15 @@ The lab computers contain a prebuild image so you will not have to build the ima
     ```
     (lab-2) robot@docker-desktop:~$
     ```
-* Edit the lab-2 Python code  within the `lab-2/src` and `lab-2/src/exercise` from a VS Code editor on the host machine. The repo directory `lab-2/src`  is mounted to the docker container located at `/home/robot/lab-2/src` so all changes will be reflected **inside** the container.
+* Edit the lab-2 Python code within `lab-2/src` from a VS Code editor on the host machine. The repo directory `lab-2/src` is mounted into the Docker container at `/home/robot/lab-2/src`, so all changes are reflected **inside** the container.
 
-* Test your setup by executing a Python script within the `lab-2/src` directory in the terminal running the container:
+* With the UR3e powered on and reachable on the network, run the validation script from the terminal running the container:
     ```
     cd ~/lab-2/src
-    python 2r_dh.py
+    python ur3_hw_validate.py
     ```
-The script should print a table showing the DH parameters of a simple 2R manipulator. You may now proceed with the rest of the lab procedure.
+The script connects to the robot, prints its measured joint angles and TCP pose, and reports the forward- and inverse-kinematics validation results. See the lab manual for the exact procedure.
 
 ## Lab Instructions
 
-Please follow the [lab manual](Lab_2_Manipulator_Kinematics.pdf) closely. All instructions are contained inside the lab manual.
+Please follow the [lab manual](Lab_2_Robot_Arm_Kinematics-Part-2.pdf) closely. All instructions are contained inside the lab manual.
