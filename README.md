@@ -1,7 +1,7 @@
-# ENEE 467 Fall 2025: Robotics Project Laboratory
-## Lab 2: Manipulator Kinematics with the Robotics Toolbox for Python
+# ENEE 467 Fall 2026: Robotics Project Laboratory
+## Lab 2 - Part 1: Robot Arm Kinematics
 
-This repository contains a Docker container for Lab 2 (Manipulator Kinematics with the Robotics Toolbox for Python) as well as the necessary code templates for completing the exercises.
+This repository contains a Docker container for Lab 2 (Robot Arm Kinematics) as well as the necessary code templates for completing the exercises.
 
 ## Overview
 
